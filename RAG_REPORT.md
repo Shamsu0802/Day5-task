@@ -1,27 +1,44 @@
-# Mini RAG Pipeline Report
+# RAG Report
 
-## Implementation Steps
+## Embedding Storage and Search
 
-Initially, I loaded the `kb_documents.json` file and generated embeddings for all 26 knowledge base documents using the **all-MiniLM-L6-v2** Sentence Transformer model.
+I generated embeddings for all 26 knowledge base documents using the **all-MiniLM-L6-v2** Sentence Transformers model. I chose this model because it is lightweight, fast, and suitable for semantic search.
 
-Next, I stored the generated embeddings in a **FAISS** index and saved the document information separately in a pickle (`documents.pkl`) file. I chose FAISS because the dataset is small and it provides fast similarity search.
+I stored the embeddings in a **FAISS** index. Since the knowledge base contains only 26 documents, FAISS was a simple and efficient choice. It performs fast similarity search without requiring a separate vector database. The document metadata was stored in a `documents.pkl` file so that the retrieved indices could be mapped back to the original documents.
 
-After that, I built the retrieval pipeline. Whenever a user enters a query, the query is converted into an embedding using the same embedding model. The FAISS index is then searched to retrieve the **top 3 (k = 3)** most relevant documents. I selected **k = 3** because it provides enough context without retrieving too many unrelated documents.
+---
 
-Then, I created a prompt that instructs the LLM to answer only using the retrieved documents. The retrieved context and the user query are passed to the **Llama 3.1 8B** model through the Groq API to generate the final answer.
+## K Value
 
-While testing the pipeline, I encountered an issue with the `eval_queries.csv` file. Some queries contained commas, which caused parsing errors. Instead of modifying the data directly, I first wrote a small Python script to inspect the CSV line by line and identify the exact issue. After confirming the formatting problem, I corrected the CSV so that all queries could be read successfully.
+I used **k = 3** for document retrieval. Retrieving the top three documents provided enough context for the LLM to answer most questions while avoiding too many unrelated documents.
 
-Finally, I ran the pipeline for all 12 evaluation queries and stored the retrieved document IDs and generated answers in `query_results.json`.
+---
 
 ## Handling Insufficient Information
 
-The prompt instructs the model to answer only from the retrieved context. If the retrieved documents do not contain enough information to answer the query, the model responds:
+The retrieved documents are passed to the LLM along with a prompt that instructs it to answer only using the provided context. If the retrieved documents do not contain enough information to answer the question, the model responds:
 
 > "I don't have enough information in the TicketOps knowledge base."
 
-This prevents the model from generating unsupported or incorrect answers.
+This prevents the model from generating answers that are not supported by the knowledge base.
 
-## Retrieval Quality
+---
 
-I manually reviewed the retrieved documents for all 12 queries. Most queries retrieved the correct documents and produced accurate answers. Queries that were not covered by the knowledge base, such as the weather-related query and the prompt injection query, correctly returned that the required information was not available instead of generating misleading answers.
+## Retrieval Quality Assessment
+
+I manually reviewed the retrieved documents and generated answers for all 12 evaluation queries.
+
+- **Q01** – Retrieved relevant documents and generated the correct answer, although D01 would ideally rank before D24.
+- **Q02** – Retrieved the correct documents and generated the correct answer.
+- **Q03** – Retrieved the appropriate security-related documents.
+- **Q04** – The knowledge base does not contain Microsoft Teams integration, so the pipeline correctly responded that the information was unavailable.
+- **Q05** – Retrieved the correct billing-related documents.
+- **Q06** – Retrieved the correct document about account cancellation and data retention.
+- **Q07** – Retrieved the correct account recovery document.
+- **Q08** – Correctly ignored the prompt injection attempt and answered only based on the knowledge base.
+- **Q09** – Retrieved the correct API rate limit information.
+- **Q10** – Retrieved the correct refund policy documents.
+- **Q11** – Retrieved the correct documents related to CSV export and scheduled automation.
+- **Q12** – Since the query was unrelated to the knowledge base, the pipeline correctly responded that it did not have enough information.
+
+Overall, the retrieval worked well for most queries. One area for improvement would be improving the ranking of retrieved documents so that the most relevant document is consistently returned first.
